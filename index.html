@@ -93,6 +93,14 @@ td small{display:block;color:var(--muted);font-family:var(--f-num);font-size:12p
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20}
 textarea{width:100%;min-height:150px;font-family:var(--f-num);font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px}
 button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.split3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.split3 div{background:var(--soft);border-radius:12px;padding:10px;min-width:0}
+.split3 span{display:block;font-size:12px;color:var(--muted);line-height:1.25;min-height:2.5em}
+.split3 b{font-family:var(--f-num);font-size:15px;font-variant-numeric:tabular-nums;word-break:break-word}
+@media (max-width:360px){.split3{grid-template-columns:1fr}.split3 span{min-height:0}}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-weight:600;font-size:14px;padding:8px 12px;border-radius:99px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -117,15 +125,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
       <div class="top"><h2>Показания</h2><span class="badge" id="savedBadge"></span></div>
       <div class="tip" id="scanTip"><b>Ввод с камеры:</b> нажмите на поле, затем ещё раз — в меню выберите «Сканировать текст» и наведите камеру на цифры счётчика. Работает без интернета. <a href="#" id="hideTip" style="color:var(--accent)">Понятно</a></div>
       <div class="meters" id="meters"></div>
+      <h2 style="margin-top:6px">Постоянные платежи, ₽</h2>
+      <div class="grid2" id="extras"></div>
       <button class="btn" id="saveBtn">Сохранить месяц</button>
       <div class="status" id="saveStatus"></div>
     </div>
 
     <div class="card">
-      <div class="total"><h2>К оплате по счётчикам</h2><div class="sum" id="sumTotal">—</div></div>
-      <div class="split">
-        <div><span>Водоснабжение</span><b id="sumWater">—</b></div>
+      <div class="total"><h2>Итого к оплате за месяц</h2><div class="sum" id="sumTotal">—</div><div class="status" id="tarInfo"></div></div>
+      <div class="split3">
+        <div><span>Вода</span><b id="sumWater">—</b></div>
         <div><span>Электричество</span><b id="sumEl">—</b></div>
+        <div><span>Квартплата и интернет</span><b id="sumOther">—</b></div>
       </div>
       <table id="lines"></table>
       <button class="btn ghost" id="shareBtn">Отправить расчёт</button>
@@ -136,11 +147,23 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   <!-- ТАРИФЫ -->
   <section id="view-tariffs" class="view" hidden>
     <div class="card">
-      <h2>Вода, ₽ за м³</h2>
-      <div class="field"><label for="t-cold">Холодная вода</label><input id="t-cold" inputmode="decimal" placeholder="0,00"><small>Применяется к расходу ХВС и к холодной воде под горячую (ГВС)</small></div>
-      <div class="field"><label for="t-heat">Нагрев горячей воды</label><input id="t-heat" inputmode="decimal" placeholder="0,00"><small>₽ за м³. Если в квитанции тариф нагрева за Гкал — впишите его и заполните поле ниже</small></div>
-      <div class="field"><label for="t-gcal">Гкал на 1 м³ (необязательно)</label><input id="t-gcal" inputmode="decimal" placeholder="пусто — тариф за м³"></div>
-      <div class="field"><label for="t-drain">Водоотведение (необязательно)</label><input id="t-drain" inputmode="decimal" placeholder="пусто — не считать"><small>Считается от суммы ХВС + ГВС</small></div>
+      <h2>Периоды тарифов</h2>
+      <div class="chips" id="periods"></div>
+      <div class="status" id="periodInfo"></div>
+      <button class="btn ghost" id="newPeriodBtn">+ Новые тарифы с месяца</button>
+      <div class="confirm" id="newPeriodBox" hidden>
+        <div class="field"><label for="newFrom">С какого месяца действуют новые тарифы</label><input type="month" id="newFrom"></div>
+        <small class="status">Цифры скопируются из текущего периода — поменяйте только те, что изменились. Месяцы до этой даты останутся по старым тарифам.</small>
+        <div class="row"><button class="btn" id="newPeriodOk">Создать</button><button class="btn ghost" id="newPeriodCancel">Отмена</button></div>
+        <div class="status err" id="newPeriodErr"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Вода</h2>
+      <div class="field"><label for="t-cold">Холодная вода, ₽ за м³</label><input id="t-cold" inputmode="decimal" placeholder="0,00"><small>Применяется к расходу ХВС и к холодной воде под горячую (ГВС)</small></div>
+      <div class="field"><label for="t-heat">Нагрев горячей воды</label><input id="t-heat" inputmode="decimal" placeholder="0,00"><small>₽ за Гкал (если заполнено поле ниже) или ₽ за м³</small></div>
+      <div class="field"><label for="t-gcal">Гкал на 1 м³ горячей воды</label><input id="t-gcal" inputmode="decimal" placeholder="пусто — нагрев за м³"><small>Из квитанции: Гкал «Подогрев» ÷ м³ «ХВС для ГВС»</small></div>
+      <div class="field"><label for="t-drain">Водоотведение, ₽ за м³</label><input id="t-drain" inputmode="decimal" placeholder="пусто — не считать"><small>Считается от суммы ХВС + ГВС</small></div>
     </div>
     <div class="card">
       <h2>Электричество, ₽ за кВт·ч</h2>
@@ -148,7 +171,20 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
         <div class="field"><label for="t-t1">Т1 (день)</label><input id="t-t1" inputmode="decimal" placeholder="0,00"></div>
         <div class="field"><label for="t-t2">Т2 (ночь)</label><input id="t-t2" inputmode="decimal" placeholder="0,00"></div>
       </div>
+    </div>
+    <div class="card">
+      <h2>Постоянные платежи, ₽ в месяц</h2>
+      <div class="grid2">
+        <div class="field"><label for="t-rent">Квартплата</label><input id="t-rent" inputmode="decimal" placeholder="0,00"></div>
+        <div class="field"><label for="t-internet">Интернет</label><input id="t-internet" inputmode="decimal" placeholder="0,00"></div>
+      </div>
+      <small class="status">Подставляются в каждый месяц автоматически. Если в каком‑то месяце сумма другая — исправьте её на вкладке «Расчёт».</small>
       <button class="btn" id="saveTariffs">Сохранить тарифы</button>
+      <button class="btn danger" id="delPeriodBtn" hidden>Удалить этот период</button>
+      <div class="confirm" id="delPeriodBox" hidden>
+        <div id="delPeriodText"></div>
+        <div class="row"><button class="btn danger" id="delPeriodOk">Удалить</button><button class="btn ghost" id="delPeriodCancel">Отмена</button></div>
+      </div>
     </div>
   </section>
 
@@ -178,7 +214,11 @@ const METERS=[
   {k:'t1',  name:'Электричество Т1',   unit:'кВт·ч',cls:'el',dec:1},
   {k:'t2',  name:'Электричество Т2',   unit:'кВт·ч',cls:'el',dec:1},
 ];
+const EXTRAS=[{k:'rent',name:'Квартплата'},{k:'internet',name:'Интернет'}];
+const TKEYS=['cold','heat','gcal','drain','t1','t2','rent','internet'];
+const BASE='0000-01';
 const MONTHS=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const MONTHS_G=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const LS='schetchiki.v1', LS_TIP='schetchiki.tip';
 const $=id=>document.getElementById(id);
 const rub=new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:2,maximumFractionDigits:2});
@@ -188,6 +228,8 @@ const r2=x=>Math.round(x*100)/100, r3=x=>Math.round(x*1000)/1000;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const keyOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 const labelOf=k=>{const [y,m]=k.split('-');return MONTHS[+m-1]+' '+y};
+const gen=k=>{const [y,m]=k.split('-');return MONTHS_G[+m-1]+' '+y};
+const fromLabel=k=>k===BASE?'начальные':'с '+gen(k);
 const shift=(k,n)=>{const [y,m]=k.split('-').map(Number);return keyOf(new Date(y,m-1+n,1))};
 const show=v=>v==null?'':String(v).replace('.',',');
 
@@ -200,56 +242,64 @@ function parseScan(text,meter){
   if(meter.water){
     if(groups.length>=2) return num(groups[0]+'.'+groups.slice(1).join(''));
     const g=groups[0];
-    if(g.length===8) return num(g.slice(0,5)+'.'+g.slice(5));   // 5 чёрных + 3 красных
+    if(g.length===8) return num(g.slice(0,5)+'.'+g.slice(5));
     return num(g);
   }
   if(groups.length>=2 && groups[groups.length-1].length===1) return num(groups.slice(0,-1).join('')+'.'+groups[groups.length-1]);
   return num(groups.join(''));
 }
 
-/* ---------- хранилище (только на телефоне) ---------- */
+/* ---------- состояние и хранилище ---------- */
+const S={periods:[{from:BASE,t:{}}],readings:{},month:keyOf(new Date()),draft:{},confirmDel:null,selPeriod:BASE};
 function loadAll(){try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}}
 function saveAll(){
-  const all={settings:{tariffs:S.tariffs}};
+  const all={settings:{periods:S.periods}};
   Object.values(S.readings).forEach(r=>all['r-'+r.month]=r);
   localStorage.setItem(LS,JSON.stringify(all));
 }
 try{navigator.storage?.persist?.()}catch(e){}
-
-/* ---------- состояние ---------- */
-const S={tariffs:{},readings:{},month:keyOf(new Date()),draft:{},notes:{},confirmDel:null};
 function apply(all){
-  S.tariffs=all?.settings?.tariffs||{};
+  const st=all?.settings||{};
+  if(Array.isArray(st.periods)&&st.periods.length) S.periods=st.periods.map(p=>({from:p.from,t:{...p.t}}));
+  else S.periods=[{from:BASE,t:{...(st.tariffs||{})}}];
+  if(!S.periods.some(p=>p.from===BASE)) S.periods.push({from:BASE,t:{...S.periods[0].t}});
+  S.periods.sort((a,b)=>a.from<b.from?-1:1);
   S.readings={};
   Object.keys(all||{}).filter(k=>k.startsWith('r-')).forEach(k=>{const r=all[k];if(r?.month&&r.values)S.readings[r.month]=r});
   S.draft={};
 }
+function periodFor(month){let p=S.periods[0];S.periods.forEach(x=>{if(x.from<=month)p=x});return p}
+const tariffsFor=m=>periodFor(m).t;
 function prevOf(month){
   const ks=Object.keys(S.readings).filter(k=>k<month).sort();
   return ks.length?S.readings[ks[ks.length-1]]:null;
 }
+function extraVal(values,t,k){const v=num(values?.[k]);return v!=null?v:num(t[k])}
+
 function calc(values,prevValues,t){
   const d={};
   METERS.forEach(m=>{const v=num(values?.[m.k]),p=num(prevValues?.[m.k]);d[m.k]=(v!=null&&p!=null)?r3(v-p):null});
   const gcal=num(t.gcal);
-  const lines=[
-    {g:'w',label:'Холодная вода',qty:d.cold,unit:'м³',rate:num(t.cold)},
-    {g:'w',label:'Холодная вода под ГВС',qty:d.hot,unit:'м³',rate:num(t.cold)},
-    gcal?{g:'w',label:'Нагрев ГВС',qty:d.hot!=null?r3(d.hot*gcal):null,unit:'Гкал',rate:num(t.heat)}
-        :{g:'w',label:'Нагрев ГВС',qty:d.hot,unit:'м³',rate:num(t.heat)},
-  ];
-  if(num(t.drain)) lines.push({g:'w',label:'Водоотведение',qty:(d.cold!=null&&d.hot!=null)?r3(d.cold+d.hot):null,unit:'м³',rate:num(t.drain)});
-  lines.push({g:'e',label:'Электричество Т1',qty:d.t1,unit:'кВт·ч',rate:num(t.t1)});
-  lines.push({g:'e',label:'Электричество Т2',qty:d.t2,unit:'кВт·ч',rate:num(t.t2)});
-  let w=0,e=0,ready=true;
+  const lines=[];
+  if(prevValues){
+    lines.push({g:'w',label:'Холодная вода',qty:d.cold,unit:'м³',rate:num(t.cold)});
+    lines.push({g:'w',label:'Холодная вода под ГВС',qty:d.hot,unit:'м³',rate:num(t.cold)});
+    lines.push(gcal?{g:'w',label:'Нагрев ГВС',qty:d.hot!=null?r3(d.hot*gcal):null,unit:'Гкал',rate:num(t.heat)}
+                   :{g:'w',label:'Нагрев ГВС',qty:d.hot,unit:'м³',rate:num(t.heat)});
+    if(num(t.drain)) lines.push({g:'w',label:'Водоотведение',qty:(d.cold!=null&&d.hot!=null)?r3(d.cold+d.hot):null,unit:'м³',rate:num(t.drain)});
+    lines.push({g:'e',label:'Электричество Т1',qty:d.t1,unit:'кВт·ч',rate:num(t.t1)});
+    lines.push({g:'e',label:'Электричество Т2',qty:d.t2,unit:'кВт·ч',rate:num(t.t2)});
+  }
+  let w=0,e=0,o=0,ready=!!prevValues;
   lines.forEach(l=>{
     if(l.qty==null||l.rate==null){l.sum=null;ready=false;return}
     l.sum=r2(l.qty*l.rate); if(l.g==='w')w+=l.sum;else e+=l.sum;
   });
-  return {d,lines,water:r2(w),el:r2(e),total:r2(w+e),ready};
+  EXTRAS.forEach(x=>{const v=extraVal(values,t,x.k);if(v){lines.push({g:'o',label:x.name,fixed:true,sum:r2(v)});o+=v}});
+  return {d,lines,water:r2(w),el:r2(e),other:r2(o),total:r2(w+e+o),ready};
 }
 
-/* ---------- отрисовка ---------- */
+/* ---------- отрисовка: расчёт ---------- */
 function renderMonth(){
   $('mLabel').textContent=labelOf(S.month);
   const p=prevOf(S.month);
@@ -261,12 +311,10 @@ function renderMeters(){
   const dr=S.draft[S.month]||{};
   $('meters').innerHTML=METERS.map(m=>{
     const {dl,txt}=deltaText(num(dr[m.k]),num(p[m.k]),m);
-    const note=S.notes[m.k];
     return `<div class="meter ${m.cls}">
       <div><div class="name">${m.name}</div><div class="prev">было: ${p[m.k]!=null?fmtN(p[m.k],m.dec)+' '+m.unit:'—'}</div></div>
       <div class="delta ${dl!=null&&dl<0?'bad':''}" id="d-${m.k}">${txt}</div>
       <input id="in-${m.k}" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="${p[m.k]!=null?fmtN(p[m.k],m.dec):'0'}" value="${esc(dr[m.k]??'')}" aria-label="${m.name}">
-      ${note?`<div class="note" id="n-${m.k}">${esc(note)}</div>`:''}
     </div>`}).join('');
   METERS.forEach(m=>{
     const inp=$('in-'+m.k);
@@ -277,46 +325,96 @@ function renderMeters(){
       renderResult();renderBadge();
     };
     inp.addEventListener('input',()=>{
-      // текст с камеры приходит целиком: если в нём есть пробелы/буквы — разбираем сразу
       if(/[^\d.,]/.test(inp.value)){const v=parseScan(inp.value,m);if(v!=null)inp.value=show(v)}
       upd();
     });
     inp.addEventListener('blur',()=>{const v=num(inp.value);if(v!=null){inp.value=show(v);upd()}});
+  });
+  const t=tariffsFor(S.month);
+  $('extras').innerHTML=EXTRAS.map(x=>`<div class="field"><label for="in-${x.k}">${x.name}</label><input id="in-${x.k}" inputmode="decimal" placeholder="${num(t[x.k])!=null?fmtN(t[x.k],2):'0'}" value="${esc(dr[x.k]??'')}"><small>${num(t[x.k])!=null?'по тарифу '+rub.format(t[x.k]):'не задано в тарифах'}</small></div>`).join('');
+  EXTRAS.forEach(x=>{
+    const inp=$('in-'+x.k);
+    inp.addEventListener('input',()=>{(S.draft[S.month] ||= {})[x.k]=inp.value;renderResult();renderBadge()});
+    inp.addEventListener('blur',()=>{const v=num(inp.value);if(v!=null)inp.value=show(v)});
   });
   renderBadge();
 }
 function renderBadge(){
   const saved=S.readings[S.month];const b=$('savedBadge');
   if(!saved){b.textContent='не сохранено';b.className='badge';return}
-  const dr=S.draft[S.month]||{};
-  const same=METERS.every(m=>num(dr[m.k])===num(saved.values[m.k]));
+  const dr=S.draft[S.month]||{};const t=tariffsFor(S.month);
+  const same=METERS.every(m=>num(dr[m.k])===num(saved.values[m.k]))
+    && EXTRAS.every(x=>extraVal(dr,t,x.k)===extraVal(saved.values,t,x.k));
   b.textContent=same?'сохранено':'есть изменения';b.className='badge'+(same?' saved':'');
 }
-function currentCalc(){const p=prevOf(S.month);return {p,c:calc(S.draft[S.month]||{},p?.values,S.tariffs)}}
+function currentCalc(){const p=prevOf(S.month);return {p,c:calc(S.draft[S.month]||{},p?.values,tariffsFor(S.month))}}
 function renderResult(){
-  const {p,c}=currentCalc();
-  if(!p){
-    $('sumTotal').textContent='—';$('sumWater').textContent='—';$('sumEl').textContent='—';
-    $('lines').innerHTML=`<tr><td class="empty">Это первый месяц: сохраните текущие показания как стартовые. Сумма появится со следующего месяца.</td></tr>`;
-    $('shareBtn').hidden=true;return;
-  }
-  $('shareBtn').hidden=false;
-  const noTar=['cold','heat','t1','t2'].some(k=>num(S.tariffs[k])==null);
-  $('sumTotal').textContent=c.ready?rub.format(c.total):(c.total?rub.format(c.total)+' *':'—');
-  $('sumWater').textContent=rub.format(c.water);$('sumEl').textContent=rub.format(c.el);
-  $('lines').innerHTML=c.lines.map(l=>`<tr><td>${l.label}<small>${l.qty!=null?fmtN(l.qty)+' '+l.unit:'нет показаний'} × ${l.rate!=null?fmtN(l.rate,4)+' ₽':'нет тарифа'}</small></td><td class="n">${l.sum!=null?rub.format(l.sum):'—'}</td></tr>`).join('')
-    +(noTar?`<tr><td colspan="2" class="empty">Заполните тарифы на вкладке «Тарифы».</td></tr>`:'')
-    +(!c.ready&&!noTar?`<tr><td colspan="2" class="empty">* Введите все показания, чтобы получить полную сумму.</td></tr>`:'');
+  const {p,c}=currentCalc();const t=tariffsFor(S.month);
+  const per=periodFor(S.month);
+  $('tarInfo').textContent='Тарифы: '+(per.from===BASE?'начальные':fromLabel(per.from));
+  $('sumWater').textContent=p?rub.format(c.water):'—';$('sumEl').textContent=p?rub.format(c.el):'—';
+  $('sumOther').textContent=rub.format(c.other);
+  const noTar=['cold','heat','t1','t2'].some(k=>num(t[k])==null);
+  $('sumTotal').textContent=(c.ready||!p)?rub.format(c.total):(c.total?rub.format(c.total)+' *':'—');
+  $('lines').innerHTML=c.lines.map(l=>`<tr><td>${l.label}${l.fixed?'<small>за месяц</small>':`<small>${l.qty!=null?fmtN(l.qty)+' '+l.unit:'нет показаний'} × ${l.rate!=null?fmtN(l.rate,4)+' ₽':'нет тарифа'}</small>`}</td><td class="n">${l.sum!=null?rub.format(l.sum):'—'}</td></tr>`).join('')
+    +(!p?`<tr><td colspan="2" class="empty">Это первый месяц: сохраните текущие показания как стартовые. Расчёт по счётчикам начнётся со следующего месяца.</td></tr>`:'')
+    +(p&&noTar?`<tr><td colspan="2" class="empty">Заполните тарифы на вкладке «Тарифы».</td></tr>`:'')
+    +(p&&!c.ready&&!noTar?`<tr><td colspan="2" class="empty">* Введите все показания, чтобы получить полную сумму.</td></tr>`:'');
+  $('shareBtn').hidden=!c.lines.length;
 }
-function renderTariffs(){['cold','heat','gcal','drain','t1','t2'].forEach(k=>$('t-'+k).value=show(S.tariffs[k]))}
+
+/* ---------- отрисовка: тарифы ---------- */
+function renderPeriods(){
+  if(!S.periods.some(p=>p.from===S.selPeriod)) S.selPeriod=periodFor(S.month).from;
+  $('periods').innerHTML=S.periods.map(p=>`<button class="chip" data-from="${p.from}" aria-pressed="${p.from===S.selPeriod}">${p.from===BASE?'Начальные':fromLabel(p.from)}</button>`).join('');
+  const i=S.periods.findIndex(p=>p.from===S.selPeriod);
+  const next=S.periods[i+1];
+  $('periodInfo').textContent=S.periods.length===1?'Сейчас один набор тарифов — он действует для всех месяцев.'
+    :'Эти тарифы действуют '+(S.selPeriod===BASE?'для месяцев до '+gen(next.from):fromLabel(S.selPeriod)+(next?' до '+gen(next.from):' и дальше'))+'.';
+  const t=S.periods[i].t;
+  TKEYS.forEach(k=>$('t-'+k).value=show(t[k]));
+  $('delPeriodBtn').hidden=S.selPeriod===BASE;$('delPeriodBox').hidden=true;
+}
+$('periods').addEventListener('click',e=>{const b=e.target.closest('[data-from]');if(!b)return;S.selPeriod=b.dataset.from;renderPeriods()});
+$('newPeriodBtn').onclick=()=>{
+  $('newPeriodBox').hidden=false;$('newPeriodErr').textContent='';
+  const last=S.periods[S.periods.length-1].from;
+  $('newFrom').value=last>keyOf(new Date())?shift(last,1):keyOf(new Date());
+};
+$('newPeriodCancel').onclick=()=>$('newPeriodBox').hidden=true;
+$('newPeriodOk').onclick=()=>{
+  const v=String($('newFrom').value||'').trim();
+  if(!/^\d{4}-\d{2}$/.test(v)){$('newPeriodErr').textContent='Выберите месяц и год.';return}
+  if(S.periods.some(p=>p.from===v)){$('newPeriodErr').textContent='Период с этого месяца уже есть — выберите его в списке выше.';return}
+  const src=periodFor(v).t;
+  S.periods.push({from:v,t:{...src}});S.periods.sort((a,b)=>a.from<b.from?-1:1);
+  S.selPeriod=v;$('newPeriodBox').hidden=true;
+  try{saveAll()}catch(e){}
+  renderPeriods();renderAllButTariffs();toast('Период создан — впишите новые цифры');
+};
+$('saveTariffs').onclick=()=>{
+  const t={};TKEYS.forEach(k=>{const v=num($('t-'+k).value);if(v!=null)t[k]=v});
+  const p=S.periods.find(p=>p.from===S.selPeriod);p.t=t;
+  try{saveAll();toast('Тарифы сохранены')}catch(e){toast('Не удалось сохранить тарифы')}
+  renderPeriods();renderAllButTariffs();
+};
+$('delPeriodBtn').onclick=()=>{$('delPeriodText').textContent=`Удалить тарифы ${fromLabel(S.selPeriod)}? Эти месяцы будут считаться по предыдущему периоду.`;$('delPeriodBox').hidden=false};
+$('delPeriodCancel').onclick=()=>$('delPeriodBox').hidden=true;
+$('delPeriodOk').onclick=()=>{
+  S.periods=S.periods.filter(p=>p.from!==S.selPeriod);S.selPeriod=periodFor(S.month).from;
+  try{saveAll()}catch(e){}
+  toast('Период удалён');renderPeriods();renderAllButTariffs();
+};
+
+/* ---------- отрисовка: история ---------- */
 function renderHist(){
   const ks=Object.keys(S.readings).sort().reverse();
   if(!ks.length){$('hist').innerHTML='<div class="empty">Пока пусто. Сохраните показания на вкладке «Расчёт» — здесь появится каждый месяц с суммой.</div>';return}
   $('hist').innerHTML=ks.map(k=>{
     const r=S.readings[k];const p=prevOf(k);
-    const c=p?calc(r.values,p.values,r.tariffs||S.tariffs):null;
+    const c=calc(r.values,p?.values,tariffsFor(k));
     const del=S.confirmDel===k;
-    return `<button class="hitem" data-k="${k}"><div><b>${labelOf(k)}</b><small>ХВС ${fmtN(r.values.cold)} · ГВС ${fmtN(r.values.hot)} · Т1 ${fmtN(r.values.t1,1)} · Т2 ${fmtN(r.values.t2,1)}</small>${c?`<small>вода ${rub.format(c.water)} · свет ${rub.format(c.el)}</small>`:'<small>стартовые показания</small>'}</div><span class="s">${c?rub.format(c.total):'—'}</span></button>
+    return `<button class="hitem" data-k="${k}"><div><b>${labelOf(k)}</b><small>ХВС ${fmtN(r.values.cold)} · ГВС ${fmtN(r.values.hot)} · Т1 ${fmtN(r.values.t1,1)} · Т2 ${fmtN(r.values.t2,1)}</small>${p?`<small>вода ${rub.format(c.water)} · свет ${rub.format(c.el)} · прочее ${rub.format(c.other)}</small>`:'<small>стартовые показания</small>'}</div><span class="s">${p||c.other?rub.format(c.total):'—'}</span></button>
     ${del?`<div class="confirm"><div>Удалить показания за ${labelOf(k)}?</div><div class="row"><button class="btn danger" data-del="${k}">Удалить</button><button class="btn ghost" data-cancel="1">Отмена</button></div></div>`:''}`;
   }).join('');
   if(S.readings[S.month]&&S.confirmDel!==S.month)
@@ -330,15 +428,21 @@ $('hist').addEventListener('click',e=>{
   setMonth(t.dataset.k);setTab('calc');
 });
 
-function renderAll(){renderMonth();renderMeters();renderResult();renderTariffs();renderHist()}
+function renderAllButTariffs(){renderMonth();renderMeters();renderResult();renderHist()}
+function renderAll(){renderAllButTariffs();renderPeriods()}
 function setMonth(k){
-  S.month=k;S.notes={};
-  if(!S.draft[k]&&S.readings[k]) S.draft[k]=Object.fromEntries(METERS.map(m=>[m.k,show(S.readings[k].values[m.k])]));
+  S.month=k;
+  if(!S.draft[k]&&S.readings[k]){
+    const v=S.readings[k].values;
+    S.draft[k]=Object.fromEntries([...METERS.map(m=>m.k),...EXTRAS.map(x=>x.k)].map(key=>[key,show(v[key])]));
+  }
+  S.selPeriod=periodFor(k).from;
   $('saveStatus').textContent='';delete $('saveBtn').dataset.force;renderAll();
 }
 function setTab(t){
   ['calc','tariffs','hist'].forEach(x=>{$('tab-'+x).setAttribute('aria-selected',x===t);$('view-'+x).hidden=x!==t});
   if(t==='hist'){S.confirmDel=null;renderHist()}
+  if(t==='tariffs'){S.selPeriod=periodFor(S.month).from;$('newPeriodBox').hidden=true;renderPeriods()}
   window.scrollTo(0,0);
 }
 ['calc','tariffs','hist'].forEach(x=>$('tab-'+x).onclick=()=>setTab(x));
@@ -347,16 +451,17 @@ $('mNext').onclick=()=>setMonth(shift(S.month,1));
 
 let toastT;function toast(msg){let el=document.querySelector('.toast');if(!el){el=document.createElement('div');el.className='toast';document.body.append(el)}el.textContent=msg;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2200)}
 
-/* подсказка про сканирование */
 try{if(localStorage.getItem(LS_TIP))$('scanTip').hidden=true}catch(e){}
 $('hideTip').onclick=e=>{e.preventDefault();$('scanTip').hidden=true;try{localStorage.setItem(LS_TIP,'1')}catch(e){}};
 
-/* ---------- сохранение ---------- */
+/* ---------- сохранение месяца ---------- */
 $('saveBtn').onclick=()=>{
   const dr=S.draft[S.month]||{};const values={};const missing=[];
   METERS.forEach(m=>{const v=num(dr[m.k]);if(v==null)missing.push(m.name);values[m.k]=v});
   const st=$('saveStatus');
   if(missing.length){st.className='status err';st.textContent='Не заполнено: '+missing.join(', ');return}
+  const t=tariffsFor(S.month);
+  EXTRAS.forEach(x=>{values[x.k]=extraVal(dr,t,x.k)});
   const p=prevOf(S.month);
   const neg=p?METERS.filter(m=>values[m.k]<num(p.values[m.k])).map(m=>m.name):[];
   if(neg.length&&$('saveBtn').dataset.force!==S.month){
@@ -364,26 +469,22 @@ $('saveBtn').onclick=()=>{
     $('saveBtn').dataset.force=S.month;return;
   }
   delete $('saveBtn').dataset.force;
-  S.readings[S.month]={month:S.month,values,tariffs:{...S.tariffs},savedAt:new Date().toISOString()};
+  S.readings[S.month]={month:S.month,values,savedAt:new Date().toISOString()};
+  S.draft[S.month]={...dr};EXTRAS.forEach(x=>S.draft[S.month][x.k]=show(values[x.k]));
   try{saveAll();st.textContent='';toast('Сохранено: '+labelOf(S.month))}
   catch(e){delete S.readings[S.month];st.className='status err';st.textContent='Не удалось сохранить: память телефона недоступна.'}
-  renderBadge();renderMonth();renderHist();
-};
-$('saveTariffs').onclick=()=>{
-  const t={};['cold','heat','gcal','drain','t1','t2'].forEach(k=>{const v=num($('t-'+k).value);if(v!=null)t[k]=v});
-  S.tariffs=t;
-  try{saveAll();toast('Тарифы сохранены')}catch(e){toast('Не удалось сохранить тарифы')}
-  renderTariffs();renderResult();
+  renderAllButTariffs();
 };
 
 /* ---------- отправка расчёта ---------- */
 $('shareBtn').onclick=async()=>{
-  const {p,c}=currentCalc();if(!p)return;
-  const txt=[`Коммунальные по счётчикам — ${labelOf(S.month)}`,
-    ...METERS.map(m=>`${m.name}: ${fmtN(num((S.draft[S.month]||{})[m.k]),m.dec)} (было ${fmtN(p.values[m.k],m.dec)})`),
+  const {p,c}=currentCalc();
+  const dr=S.draft[S.month]||{};
+  const txt=[`Коммунальные — ${labelOf(S.month)}`,
+    ...(p?METERS.map(m=>`${m.name}: ${fmtN(num(dr[m.k]),m.dec)} (было ${fmtN(p.values[m.k],m.dec)})`):[]),
     '',
-    ...c.lines.map(l=>`${l.label}: ${l.qty!=null?fmtN(l.qty)+' '+l.unit:'—'} × ${l.rate!=null?fmtN(l.rate,4):'—'} = ${l.sum!=null?rub.format(l.sum):'—'}`),
-    '',`Вода: ${rub.format(c.water)}`,`Электричество: ${rub.format(c.el)}`,`ИТОГО: ${rub.format(c.total)}`].join('\n');
+    ...c.lines.map(l=>l.fixed?`${l.label}: ${rub.format(l.sum)}`:`${l.label}: ${l.qty!=null?fmtN(l.qty)+' '+l.unit:'—'} × ${l.rate!=null?fmtN(l.rate,4):'—'} = ${l.sum!=null?rub.format(l.sum):'—'}`),
+    '',`Вода: ${rub.format(c.water)}`,`Электричество: ${rub.format(c.el)}`,`Квартплата и интернет: ${rub.format(c.other)}`,`ИТОГО: ${rub.format(c.total)}`].join('\n');
   try{
     if(navigator.share){await navigator.share({text:txt});return}
     await navigator.clipboard.writeText(txt);toast('Скопировано');
@@ -415,7 +516,14 @@ $('importIn').onchange=async e=>{
 };
 
 /* ---------- запуск ---------- */
-apply(loadAll());setMonth(S.month);
+apply(loadAll());
+/* перенос: месяцы, сохранённые старой версией со снимком тарифов, получают свой период */
+(function migrate(){
+  let changed=false;
+  Object.values(S.readings).forEach(r=>{if(r.tariffs){delete r.tariffs;changed=true}});
+  if(changed){try{saveAll()}catch(e){}}
+})();
+setMonth(S.month);
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
