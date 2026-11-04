@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Счётчики</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Счётчики">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef1f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1419" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#eef1f4; --card:#ffffff; --fg:#17202b; --muted:#5f6b78; --line:#d8dee5;
+  --accent:#1f5fae; --accent-ink:#ffffff; --cold:#2a7bd6; --hot:#d2412f; --el:#c88a06;
+  --ok:#1f8a4c; --warn:#b4570b; --odo:#1b232d; --odo-fg:#f3f5f7; --soft:#e4eaf1;
+  --f-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  --f-num:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1419; --card:#18202a; --fg:#e7ecf1; --muted:#93a0ae; --line:#2a3542;
+  --accent:#6aa5ec; --accent-ink:#0b1420; --cold:#6aaef0; --hot:#f0715f; --el:#e8b33e;
+  --ok:#53c283; --warn:#f0a05a; --odo:#0a0e12; --odo-fg:#eef2f6; --soft:#212c38; color-scheme:dark}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1{font-size:24px;font-weight:700;margin:0;letter-spacing:-.01em}
+h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.month{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px}
+.month b{display:block;font-size:17px;font-weight:600;text-transform:capitalize;text-align:center}
+.month small{display:block;font-size:12px;color:var(--muted);text-align:center}
+.icon-btn{width:44px;height:44px;border-radius:10px;border:0;background:var(--soft);color:var(--fg);font-size:22px;cursor:pointer}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);background:var(--soft);border-radius:12px;padding:4px;gap:4px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:9px 4px;border-radius:9px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.view{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.btn{border:0;border-radius:12px;padding:13px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent);color:var(--accent-ink);text-align:center;display:block}
+.btn.ghost{background:var(--soft);color:var(--fg)}
+.btn.danger{background:transparent;color:var(--hot);border:1px solid var(--line)}
+.btn:disabled{opacity:.5}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.btn{flex:1 1 140px}
+.status{font-size:13px;color:var(--muted)}
+.status.err{color:var(--hot)}
+.tip{font-size:13px;color:var(--muted);background:var(--soft);border-radius:12px;padding:10px 12px}
+.tip b{color:var(--fg)}
+.meters{display:flex;flex-direction:column;gap:14px}
+.meter{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;padding-left:12px;border-left:4px solid var(--c)}
+.meter .name{font-weight:600}
+.meter .prev{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.meter input{grid-column:1 / -1;width:100%;font-family:var(--f-num);font-size:22px;font-weight:700;letter-spacing:.06em;
+  background:var(--odo);color:var(--odo-fg);border:0;border-radius:10px;padding:11px 12px;font-variant-numeric:tabular-nums}
+.meter input::placeholder{color:#6d7885;font-weight:500}
+.delta{font-family:var(--f-num);font-size:14px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.delta.bad{color:var(--hot)}
+.note{grid-column:1 / -1;font-size:12.5px;color:var(--warn)}
+.cold{--c:var(--cold)}.hot{--c:var(--hot)}.el{--c:var(--el)}
+.total .sum{font-family:var(--f-num);font-size:34px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.split div{background:var(--soft);border-radius:12px;padding:10px 12px;min-width:0}
+.split span{display:block;font-size:12.5px;color:var(--muted)}
+.split b{font-family:var(--f-num);font-size:18px;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td{padding:7px 0;border-top:1px solid var(--line);vertical-align:top}
+td.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:8px}
+td small{display:block;color:var(--muted);font-family:var(--f-num);font-size:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-weight:600;font-size:14px}
+.field small{color:var(--muted);font-size:12.5px}
+.field input{font-family:var(--f-num);font-size:18px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:360px){.grid2,.split{grid-template-columns:1fr}}
+.hitem{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border:0;border-top:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left;width:100%;cursor:pointer}
+.hitem:first-child{border-top:0}
+.hitem b{text-transform:capitalize;font-weight:600}
+.hitem small{display:block;color:var(--muted);font-size:12.5px;font-family:var(--f-num)}
+.hitem .s{font-family:var(--f-num);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.empty{color:var(--muted);font-size:14px}
+.confirm{background:var(--soft);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.badge{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--muted)}
+.badge.saved{color:var(--ok)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;z-index:20}
+textarea{width:100%;min-height:150px;font-family:var(--f-num);font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><h1>Счётчики</h1></div>
+
+  <div class="month">
+    <button class="icon-btn" id="mPrev" aria-label="Предыдущий месяц">‹</button>
+    <div><b id="mLabel"></b><small id="mSub"></small></div>
+    <button class="icon-btn" id="mNext" aria-label="Следующий месяц">›</button>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-calc" aria-selected="true">Расчёт</button>
+    <button role="tab" id="tab-tariffs" aria-selected="false">Тарифы</button>
+    <button role="tab" id="tab-hist" aria-selected="false">История</button>
+  </div>
+
+  <!-- РАСЧЁТ -->
+  <section id="view-calc" class="view">
+    <div class="card">
+      <div class="top"><h2>Показания</h2><span class="badge" id="savedBadge"></span></div>
+      <div class="tip" id="scanTip"><b>Ввод с камеры:</b> нажмите на поле, затем ещё раз — в меню выберите «Сканировать текст» и наведите камеру на цифры счётчика. Работает без интернета. <a href="#" id="hideTip" style="color:var(--accent)">Понятно</a></div>
+      <div class="meters" id="meters"></div>
+      <button class="btn" id="saveBtn">Сохранить месяц</button>
+      <div class="status" id="saveStatus"></div>
+    </div>
+
+    <div class="card">
+      <div class="total"><h2>К оплате по счётчикам</h2><div class="sum" id="sumTotal">—</div></div>
+      <div class="split">
+        <div><span>Водоснабжение</span><b id="sumWater">—</b></div>
+        <div><span>Электричество</span><b id="sumEl">—</b></div>
+      </div>
+      <table id="lines"></table>
+      <button class="btn ghost" id="shareBtn">Отправить расчёт</button>
+      <textarea id="copyFallback" hidden readonly></textarea>
+    </div>
+  </section>
+
+  <!-- ТАРИФЫ -->
+  <section id="view-tariffs" class="view" hidden>
+    <div class="card">
+      <h2>Вода, ₽ за м³</h2>
+      <div class="field"><label for="t-cold">Холодная вода</label><input id="t-cold" inputmode="decimal" placeholder="0,00"><small>Применяется к расходу ХВС и к холодной воде под горячую (ГВС)</small></div>
+      <div class="field"><label for="t-heat">Нагрев горячей воды</label><input id="t-heat" inputmode="decimal" placeholder="0,00"><small>₽ за м³. Если в квитанции тариф нагрева за Гкал — впишите его и заполните поле ниже</small></div>
+      <div class="field"><label for="t-gcal">Гкал на 1 м³ (необязательно)</label><input id="t-gcal" inputmode="decimal" placeholder="пусто — тариф за м³"></div>
+      <div class="field"><label for="t-drain">Водоотведение (необязательно)</label><input id="t-drain" inputmode="decimal" placeholder="пусто — не считать"><small>Считается от суммы ХВС + ГВС</small></div>
+    </div>
+    <div class="card">
+      <h2>Электричество, ₽ за кВт·ч</h2>
+      <div class="grid2">
+        <div class="field"><label for="t-t1">Т1 (день)</label><input id="t-t1" inputmode="decimal" placeholder="0,00"></div>
+        <div class="field"><label for="t-t2">Т2 (ночь)</label><input id="t-t2" inputmode="decimal" placeholder="0,00"></div>
+      </div>
+      <button class="btn" id="saveTariffs">Сохранить тарифы</button>
+    </div>
+  </section>
+
+  <!-- ИСТОРИЯ -->
+  <section id="view-hist" class="view" hidden>
+    <div class="card">
+      <h2>Сохранённые месяцы</h2>
+      <div id="hist"></div>
+    </div>
+    <div class="card">
+      <h2>Резервная копия</h2>
+      <div class="status">Данные хранятся только на этом телефоне. Раз в несколько месяцев сохраняйте копию в «Файлы» — если приложение удалить, история пропадёт.</div>
+      <div class="row">
+        <button class="btn ghost" id="exportBtn">Сохранить копию</button>
+        <label class="btn ghost" for="importIn">Загрузить копию</label>
+      </div>
+      <input type="file" id="importIn" accept=".json,application/json" hidden>
+      <div class="status" id="backupStatus"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const METERS=[
+  {k:'cold',name:'Холодная вода (ХВС)',unit:'м³',cls:'cold',dec:3,water:true},
+  {k:'hot', name:'Горячая вода (ГВС)', unit:'м³',cls:'hot', dec:3,water:true},
+  {k:'t1',  name:'Электричество Т1',   unit:'кВт·ч',cls:'el',dec:1},
+  {k:'t2',  name:'Электричество Т2',   unit:'кВт·ч',cls:'el',dec:1},
+];
+const MONTHS=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const LS='schetchiki.v1', LS_TIP='schetchiki.tip';
+const $=id=>document.getElementById(id);
+const rub=new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtN=(v,d=3)=>v==null?'—':Number(v).toLocaleString('ru-RU',{minimumFractionDigits:0,maximumFractionDigits:d});
+const num=v=>{if(v==null||v==='')return null;const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.'));return isFinite(n)?n:null};
+const r2=x=>Math.round(x*100)/100, r3=x=>Math.round(x*1000)/1000;
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const keyOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+const labelOf=k=>{const [y,m]=k.split('-');return MONTHS[+m-1]+' '+y};
+const shift=(k,n)=>{const [y,m]=k.split('-').map(Number);return keyOf(new Date(y,m-1+n,1))};
+const show=v=>v==null?'':String(v).replace('.',',');
+
+/* Разбор того, что вставило «Сканировать текст»: "00123 456", "00123456", "12345.6 kWh" */
+function parseScan(text,meter){
+  let t=String(text).replace(/(m|м)\s?[3³]|kw\s?h|квт\s?[·.]?\s?ч|[TТ]\s?[12](?!\d)|тариф\s?[12]/gi,' ').replace(/[OoОо]/g,'0').replace(/[^\d.,\s]/g,' ').trim();
+  if(!t) return null;
+  if(/[.,]/.test(t)) return num(t.replace(/\s+/g,''));
+  const groups=t.split(/\s+/).filter(Boolean);
+  if(meter.water){
+    if(groups.length>=2) return num(groups[0]+'.'+groups.slice(1).join(''));
+    const g=groups[0];
+    if(g.length===8) return num(g.slice(0,5)+'.'+g.slice(5));   // 5 чёрных + 3 красных
+    return num(g);
+  }
+  if(groups.length>=2 && groups[groups.length-1].length===1) return num(groups.slice(0,-1).join('')+'.'+groups[groups.length-1]);
+  return num(groups.join(''));
+}
+
+/* ---------- хранилище (только на телефоне) ---------- */
+function loadAll(){try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}}
+function saveAll(){
+  const all={settings:{tariffs:S.tariffs}};
+  Object.values(S.readings).forEach(r=>all['r-'+r.month]=r);
+  localStorage.setItem(LS,JSON.stringify(all));
+}
+try{navigator.storage?.persist?.()}catch(e){}
+
+/* ---------- состояние ---------- */
+const S={tariffs:{},readings:{},month:keyOf(new Date()),draft:{},notes:{},confirmDel:null};
+function apply(all){
+  S.tariffs=all?.settings?.tariffs||{};
+  S.readings={};
+  Object.keys(all||{}).filter(k=>k.startsWith('r-')).forEach(k=>{const r=all[k];if(r?.month&&r.values)S.readings[r.month]=r});
+  S.draft={};
+}
+function prevOf(month){
+  const ks=Object.keys(S.readings).filter(k=>k<month).sort();
+  return ks.length?S.readings[ks[ks.length-1]]:null;
+}
+function calc(values,prevValues,t){
+  const d={};
+  METERS.forEach(m=>{const v=num(values?.[m.k]),p=num(prevValues?.[m.k]);d[m.k]=(v!=null&&p!=null)?r3(v-p):null});
+  const gcal=num(t.gcal);
+  const lines=[
+    {g:'w',label:'Холодная вода',qty:d.cold,unit:'м³',rate:num(t.cold)},
+    {g:'w',label:'Холодная вода под ГВС',qty:d.hot,unit:'м³',rate:num(t.cold)},
+    gcal?{g:'w',label:'Нагрев ГВС',qty:d.hot!=null?r3(d.hot*gcal):null,unit:'Гкал',rate:num(t.heat)}
+        :{g:'w',label:'Нагрев ГВС',qty:d.hot,unit:'м³',rate:num(t.heat)},
+  ];
+  if(num(t.drain)) lines.push({g:'w',label:'Водоотведение',qty:(d.cold!=null&&d.hot!=null)?r3(d.cold+d.hot):null,unit:'м³',rate:num(t.drain)});
+  lines.push({g:'e',label:'Электричество Т1',qty:d.t1,unit:'кВт·ч',rate:num(t.t1)});
+  lines.push({g:'e',label:'Электричество Т2',qty:d.t2,unit:'кВт·ч',rate:num(t.t2)});
+  let w=0,e=0,ready=true;
+  lines.forEach(l=>{
+    if(l.qty==null||l.rate==null){l.sum=null;ready=false;return}
+    l.sum=r2(l.qty*l.rate); if(l.g==='w')w+=l.sum;else e+=l.sum;
+  });
+  return {d,lines,water:r2(w),el:r2(e),total:r2(w+e),ready};
+}
+
+/* ---------- отрисовка ---------- */
+function renderMonth(){
+  $('mLabel').textContent=labelOf(S.month);
+  const p=prevOf(S.month);
+  $('mSub').textContent=p?'сравниваем с: '+labelOf(p.month):'первый месяц — стартовые показания';
+}
+function deltaText(v,pv,m){const dl=(v!=null&&pv!=null)?r3(v-pv):null;return {dl,txt:dl!=null?(dl>=0?'+':'')+fmtN(dl,m.dec)+' '+m.unit:''}}
+function renderMeters(){
+  const p=prevOf(S.month)?.values||{};
+  const dr=S.draft[S.month]||{};
+  $('meters').innerHTML=METERS.map(m=>{
+    const {dl,txt}=deltaText(num(dr[m.k]),num(p[m.k]),m);
+    const note=S.notes[m.k];
+    return `<div class="meter ${m.cls}">
+      <div><div class="name">${m.name}</div><div class="prev">было: ${p[m.k]!=null?fmtN(p[m.k],m.dec)+' '+m.unit:'—'}</div></div>
+      <div class="delta ${dl!=null&&dl<0?'bad':''}" id="d-${m.k}">${txt}</div>
+      <input id="in-${m.k}" inputmode="decimal" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="${p[m.k]!=null?fmtN(p[m.k],m.dec):'0'}" value="${esc(dr[m.k]??'')}" aria-label="${m.name}">
+      ${note?`<div class="note" id="n-${m.k}">${esc(note)}</div>`:''}
+    </div>`}).join('');
+  METERS.forEach(m=>{
+    const inp=$('in-'+m.k);
+    const upd=()=>{
+      (S.draft[S.month] ||= {})[m.k]=inp.value;
+      const {dl,txt}=deltaText(num(inp.value),num(p[m.k]),m);
+      const el=$('d-'+m.k);el.textContent=txt;el.classList.toggle('bad',dl!=null&&dl<0);
+      renderResult();renderBadge();
+    };
+    inp.addEventListener('input',()=>{
+      // текст с камеры приходит целиком: если в нём есть пробелы/буквы — разбираем сразу
+      if(/[^\d.,]/.test(inp.value)){const v=parseScan(inp.value,m);if(v!=null)inp.value=show(v)}
+      upd();
+    });
+    inp.addEventListener('blur',()=>{const v=num(inp.value);if(v!=null){inp.value=show(v);upd()}});
+  });
+  renderBadge();
+}
+function renderBadge(){
+  const saved=S.readings[S.month];const b=$('savedBadge');
+  if(!saved){b.textContent='не сохранено';b.className='badge';return}
+  const dr=S.draft[S.month]||{};
+  const same=METERS.every(m=>num(dr[m.k])===num(saved.values[m.k]));
+  b.textContent=same?'сохранено':'есть изменения';b.className='badge'+(same?' saved':'');
+}
+function currentCalc(){const p=prevOf(S.month);return {p,c:calc(S.draft[S.month]||{},p?.values,S.tariffs)}}
+function renderResult(){
+  const {p,c}=currentCalc();
+  if(!p){
+    $('sumTotal').textContent='—';$('sumWater').textContent='—';$('sumEl').textContent='—';
+    $('lines').innerHTML=`<tr><td class="empty">Это первый месяц: сохраните текущие показания как стартовые. Сумма появится со следующего месяца.</td></tr>`;
+    $('shareBtn').hidden=true;return;
+  }
+  $('shareBtn').hidden=false;
+  const noTar=['cold','heat','t1','t2'].some(k=>num(S.tariffs[k])==null);
+  $('sumTotal').textContent=c.ready?rub.format(c.total):(c.total?rub.format(c.total)+' *':'—');
+  $('sumWater').textContent=rub.format(c.water);$('sumEl').textContent=rub.format(c.el);
+  $('lines').innerHTML=c.lines.map(l=>`<tr><td>${l.label}<small>${l.qty!=null?fmtN(l.qty)+' '+l.unit:'нет показаний'} × ${l.rate!=null?fmtN(l.rate,4)+' ₽':'нет тарифа'}</small></td><td class="n">${l.sum!=null?rub.format(l.sum):'—'}</td></tr>`).join('')
+    +(noTar?`<tr><td colspan="2" class="empty">Заполните тарифы на вкладке «Тарифы».</td></tr>`:'')
+    +(!c.ready&&!noTar?`<tr><td colspan="2" class="empty">* Введите все показания, чтобы получить полную сумму.</td></tr>`:'');
+}
+function renderTariffs(){['cold','heat','gcal','drain','t1','t2'].forEach(k=>$('t-'+k).value=show(S.tariffs[k]))}
+function renderHist(){
+  const ks=Object.keys(S.readings).sort().reverse();
+  if(!ks.length){$('hist').innerHTML='<div class="empty">Пока пусто. Сохраните показания на вкладке «Расчёт» — здесь появится каждый месяц с суммой.</div>';return}
+  $('hist').innerHTML=ks.map(k=>{
+    const r=S.readings[k];const p=prevOf(k);
+    const c=p?calc(r.values,p.values,r.tariffs||S.tariffs):null;
+    const del=S.confirmDel===k;
+    return `<button class="hitem" data-k="${k}"><div><b>${labelOf(k)}</b><small>ХВС ${fmtN(r.values.cold)} · ГВС ${fmtN(r.values.hot)} · Т1 ${fmtN(r.values.t1,1)} · Т2 ${fmtN(r.values.t2,1)}</small>${c?`<small>вода ${rub.format(c.water)} · свет ${rub.format(c.el)}</small>`:'<small>стартовые показания</small>'}</div><span class="s">${c?rub.format(c.total):'—'}</span></button>
+    ${del?`<div class="confirm"><div>Удалить показания за ${labelOf(k)}?</div><div class="row"><button class="btn danger" data-del="${k}">Удалить</button><button class="btn ghost" data-cancel="1">Отмена</button></div></div>`:''}`;
+  }).join('');
+  if(S.readings[S.month]&&S.confirmDel!==S.month)
+    $('hist').insertAdjacentHTML('beforeend',`<button class="btn danger" style="margin-top:12px;width:100%" data-ask="${S.month}">Удалить ${labelOf(S.month)}</button>`);
+}
+$('hist').addEventListener('click',e=>{
+  const t=e.target.closest('[data-k],[data-del],[data-cancel],[data-ask]');if(!t)return;
+  if(t.dataset.ask){S.confirmDel=t.dataset.ask;renderHist();return}
+  if(t.dataset.cancel){S.confirmDel=null;renderHist();return}
+  if(t.dataset.del){const k=t.dataset.del;delete S.readings[k];delete S.draft[k];S.confirmDel=null;saveAll();toast('Удалено');renderAll();return}
+  setMonth(t.dataset.k);setTab('calc');
+});
+
+function renderAll(){renderMonth();renderMeters();renderResult();renderTariffs();renderHist()}
+function setMonth(k){
+  S.month=k;S.notes={};
+  if(!S.draft[k]&&S.readings[k]) S.draft[k]=Object.fromEntries(METERS.map(m=>[m.k,show(S.readings[k].values[m.k])]));
+  $('saveStatus').textContent='';delete $('saveBtn').dataset.force;renderAll();
+}
+function setTab(t){
+  ['calc','tariffs','hist'].forEach(x=>{$('tab-'+x).setAttribute('aria-selected',x===t);$('view-'+x).hidden=x!==t});
+  if(t==='hist'){S.confirmDel=null;renderHist()}
+  window.scrollTo(0,0);
+}
+['calc','tariffs','hist'].forEach(x=>$('tab-'+x).onclick=()=>setTab(x));
+$('mPrev').onclick=()=>setMonth(shift(S.month,-1));
+$('mNext').onclick=()=>setMonth(shift(S.month,1));
+
+let toastT;function toast(msg){let el=document.querySelector('.toast');if(!el){el=document.createElement('div');el.className='toast';document.body.append(el)}el.textContent=msg;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2200)}
+
+/* подсказка про сканирование */
+try{if(localStorage.getItem(LS_TIP))$('scanTip').hidden=true}catch(e){}
+$('hideTip').onclick=e=>{e.preventDefault();$('scanTip').hidden=true;try{localStorage.setItem(LS_TIP,'1')}catch(e){}};
+
+/* ---------- сохранение ---------- */
+$('saveBtn').onclick=()=>{
+  const dr=S.draft[S.month]||{};const values={};const missing=[];
+  METERS.forEach(m=>{const v=num(dr[m.k]);if(v==null)missing.push(m.name);values[m.k]=v});
+  const st=$('saveStatus');
+  if(missing.length){st.className='status err';st.textContent='Не заполнено: '+missing.join(', ');return}
+  const p=prevOf(S.month);
+  const neg=p?METERS.filter(m=>values[m.k]<num(p.values[m.k])).map(m=>m.name):[];
+  if(neg.length&&$('saveBtn').dataset.force!==S.month){
+    st.className='status err';st.textContent='Меньше прошлого месяца: '+neg.join(', ')+'. Проверьте цифры или нажмите «Сохранить месяц» ещё раз.';
+    $('saveBtn').dataset.force=S.month;return;
+  }
+  delete $('saveBtn').dataset.force;
+  S.readings[S.month]={month:S.month,values,tariffs:{...S.tariffs},savedAt:new Date().toISOString()};
+  try{saveAll();st.textContent='';toast('Сохранено: '+labelOf(S.month))}
+  catch(e){delete S.readings[S.month];st.className='status err';st.textContent='Не удалось сохранить: память телефона недоступна.'}
+  renderBadge();renderMonth();renderHist();
+};
+$('saveTariffs').onclick=()=>{
+  const t={};['cold','heat','gcal','drain','t1','t2'].forEach(k=>{const v=num($('t-'+k).value);if(v!=null)t[k]=v});
+  S.tariffs=t;
+  try{saveAll();toast('Тарифы сохранены')}catch(e){toast('Не удалось сохранить тарифы')}
+  renderTariffs();renderResult();
+};
+
+/* ---------- отправка расчёта ---------- */
+$('shareBtn').onclick=async()=>{
+  const {p,c}=currentCalc();if(!p)return;
+  const txt=[`Коммунальные по счётчикам — ${labelOf(S.month)}`,
+    ...METERS.map(m=>`${m.name}: ${fmtN(num((S.draft[S.month]||{})[m.k]),m.dec)} (было ${fmtN(p.values[m.k],m.dec)})`),
+    '',
+    ...c.lines.map(l=>`${l.label}: ${l.qty!=null?fmtN(l.qty)+' '+l.unit:'—'} × ${l.rate!=null?fmtN(l.rate,4):'—'} = ${l.sum!=null?rub.format(l.sum):'—'}`),
+    '',`Вода: ${rub.format(c.water)}`,`Электричество: ${rub.format(c.el)}`,`ИТОГО: ${rub.format(c.total)}`].join('\n');
+  try{
+    if(navigator.share){await navigator.share({text:txt});return}
+    await navigator.clipboard.writeText(txt);toast('Скопировано');
+  }catch(e){
+    if(e?.name==='AbortError')return;
+    const ta=$('copyFallback');ta.value=txt;ta.hidden=false;ta.focus();ta.select();
+  }
+};
+
+/* ---------- резервная копия ---------- */
+$('exportBtn').onclick=async()=>{
+  const data=localStorage.getItem(LS)||'{}';
+  const name='schetchiki-'+keyOf(new Date())+'.json';
+  const file=new File([data],name,{type:'application/json'});
+  try{
+    if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:name});return}
+  }catch(e){if(e?.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.append(a);a.click();a.remove();
+};
+$('importIn').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    const all=JSON.parse(await f.text());
+    if(typeof all!=='object'||!all)throw 0;
+    apply(all);saveAll();setMonth(S.month);
+    $('backupStatus').className='status';$('backupStatus').textContent='Копия загружена: месяцев — '+Object.keys(S.readings).length;
+  }catch(err){$('backupStatus').className='status err';$('backupStatus').textContent='Этот файл не похож на копию «Счётчиков».'}
+  e.target.value='';
+};
+
+/* ---------- запуск ---------- */
+apply(loadAll());setMonth(S.month);
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
